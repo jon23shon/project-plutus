@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ledger — Finance Tracker</title>
+<meta name="theme-color" content="#14171F">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink-900:#14171F; --ink-800:#1D212B;
+    --paper-50:#F6F4EF; --paper-100:#FFFFFF;
+    --amber:#C9982E; --rust:#B4483C; --green:#3A7057;
+    --bg:var(--paper-50); --surface:var(--paper-100);
+    --text:#1B1D22; --text-muted:#6B6F7A;
+    --border:rgba(27,29,34,.13); --row-alt:rgba(27,29,34,.025);
+    --font-display:'Fraunces',Georgia,'Times New Roman',serif;
+    --font-mono:'IBM Plex Mono',ui-monospace,'SFMono-Regular',Menlo,monospace;
+    --font-body:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    box-sizing:border-box;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --bg:var(--ink-900); --surface:var(--ink-800);
+      --text:#ECEAE3; --text-muted:#9096A3;
+      --border:rgba(236,234,227,.13); --row-alt:rgba(236,234,227,.03);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:var(--ink-900); --surface:var(--ink-800);
+    --text:#ECEAE3; --text-muted:#9096A3;
+    --border:rgba(236,234,227,.13); --row-alt:rgba(236,234,227,.03);
+  }
+  html{scroll-padding-top:env(safe-area-inset-top,0px);}
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit-font-smoothing:antialiased;}
+  *:focus-visible{outline:2px solid var(--amber);outline-offset:2px;}
+  .wrap{max-width:760px;margin:0 auto;padding:36px 20px 72px;}
+  header h1{font-family:var(--font-display);font-weight:600;font-size:2rem;margin:0;letter-spacing:-.01em;}
+  header p{color:var(--text-muted);margin:0 0 32px;font-size:.95rem;max-width:46ch;}
+  .header-top{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:4px;}
+  .theme-toggle{flex:none;width:38px;height:38px;border:1px solid var(--border);background:var(--surface);border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text);padding:0;}
+  .theme-toggle:hover{border-color:var(--amber);}
+  .theme-toggle svg{width:18px;height:18px;fill:currentColor;}
+  .totals{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:36px;}
+  .stat{border:1px solid var(--border);border-radius:10px;padding:20px;background:var(--surface);}
+  .stat .label{font-family:var(--font-mono);font-size:.72rem;color:var(--text-muted);margin-bottom:10px;}
+  .stat .value{font-family:var(--font-display);font-size:2rem;font-weight:600;font-variant-numeric:tabular-nums;opacity:1;transition:opacity .25s ease;}
+  .stat .sub{font-size:.78rem;color:var(--text-muted);margin-top:8px;min-height:1em;}
+  .stat.debt .value{color:var(--rust);}
+  .stat.out .value{color:var(--amber);}
+  @media (prefers-reduced-motion:reduce){ .stat .value{transition:none;} }
+  .panel{border:1px solid var(--border);border-radius:10px;background:var(--surface);margin-bottom:28px;overflow:hidden;}
+  .panel-head{padding:18px 20px 14px;display:flex;justify-content:space-between;align-items:baseline;}
+  .panel-head h2{font-family:var(--font-display);font-size:1.15rem;margin:0;font-weight:600;}
+  .badges{display:flex;gap:16px;flex-wrap:wrap;padding:0 20px 16px;font-family:var(--font-mono);font-size:.76rem;color:var(--text-muted);}
+  .badges b{color:var(--text);font-weight:500;}
+  .col-head,.row{display:grid;gap:10px;align-items:center;padding:11px 20px;border-top:1px solid var(--border);}
+  .col-head{font-size:.74rem;color:var(--text-muted);padding-bottom:8px;padding-top:14px;}
+  .rec-grid{grid-template-columns:1.5fr 1fr .9fr .8fr 28px;}
+  .debt-grid{grid-template-columns:1.2fr .8fr .9fr .6fr 1fr 28px;}
+  .row:nth-child(even){background:var(--row-alt);}
+  .row input,.row select{font:inherit;font-size:.92rem;background:transparent;border:1px solid transparent;border-radius:6px;padding:6px 7px;color:var(--text);width:100%;}
+  .row input[type=number]{font-family:var(--font-mono);text-align:right;}
+  .row input:hover,.row select:hover,.row input:focus,.row select:focus{border-color:var(--border);}
+  .row-del{border:none;background:none;color:var(--text-muted);font-size:1.15rem;line-height:1;cursor:pointer;padding:4px;justify-self:center;}
+  .row-del:hover{color:var(--rust);}
+  .payoff{font-family:var(--font-mono);font-size:.78rem;color:var(--text-muted);}
+  .empty{padding:18px 20px;color:var(--text-muted);font-size:.9rem;border-top:1px solid var(--border);}
+  .add-form{grid-template-columns:1.5fr 1fr .9fr .8fr 28px;display:grid;gap:10px;padding:14px 20px;border-top:1px solid var(--border);background:var(--row-alt);}
+  .add-form.debt-grid{grid-template-columns:1.2fr .8fr .9fr .6fr 1fr 28px;}
+  .add-form input,.add-form select{font:inherit;font-size:.88rem;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);min-width:0;}
+  .add-btn{grid-column:1/-1;border:none;background:var(--amber);color:#14171F;font-weight:600;font-size:.88rem;border-radius:6px;padding:9px 14px;cursor:pointer;justify-self:start;margin-top:2px;}
+  .add-btn:hover{opacity:.88;}
+  @media (max-width:620px){
+    .totals{grid-template-columns:1fr;}
+    .col-head{display:none;}
+    .rec-grid,.debt-grid,.add-form{grid-template-columns:1fr 1fr;}
+    .row-del{justify-self:end;grid-column:span 2;}
+    .payoff{grid-column:span 2;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="header-top">
+      <h1>Ledger</h1>
+      <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle dark mode"></button>
+    </div>
+    <p>Track rent, bills, subscriptions and everyday spending, and see exactly when each debt will be clear.</p>
+  </header>
+
+  <section class="totals">
+    <div class="stat out">
+      <div class="label">Total monthly outgoings</div>
+      <div class="value" id="total-outgoings">£0.00</div>
+      <div class="sub">Recurring costs + debt payments</div>
+    </div>
+    <div class="stat debt">
+      <div class="label">Total debt remaining</div>
+      <div class="value" id="total-debt">£0.00</div>
+      <div class="sub" id="debt-free-date"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>Debts</h2></div>
+    <div class="badges" id="debt-badges"></div>
+    <div class="col-head debt-grid"><span>Name</span><span>Balance</span><span>Payment</span><span>APR %</span><span>Payoff</span><span></span></div>
+    <div id="debt-list"></div>
+    <form class="add-form debt-grid" onsubmit="return addDebt(event)">
+      <input name="name" placeholder="e.g. Car loan" required>
+      <input name="balance" type="number" step="0.01" min="0" placeholder="Balance" required>
+      <input name="payment" type="number" step="0.01" min="0.01" placeholder="Monthly payment" required>
+      <input name="apr" type="number" step="0.01" min="0" placeholder="Optional">
+      <span></span><span></span>
+      <button class="add-btn" type="submit">Add debt</button>
+    </form>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>Recurring outgoings</h2></div>
+    <div class="badges">
+      <span>Rent: <b id="badge-rent">£0.00</b></span>
+      <span>Bills: <b id="badge-bill">£0.00</b></span>
+      <span>Subscriptions: <b id="badge-subscription">£0.00</b></span>
+      <span>Expenses: <b id="badge-expense">£0.00</b></span>
+    </div>
+    <div class="col-head rec-grid"><span>Name</span><span>Category</span><span>Frequency</span><span>Amount</span><span></span></div>
+    <div id="rec-list"></div>
+    <form class="add-form rec-grid" onsubmit="return addRecurring(event)">
+      <input name="name" placeholder="e.g. Netflix" required>
+      <select name="category">
+        <option value="expense">Expense</option>
+        <option value="subscription">Subscription</option>
+        <option value="bill">Bill</option>
+        <option value="rent">Rent</option>
+      </select>
+      <select name="frequency">
+        <option value="monthly">Monthly</option>
+        <option value="weekly">Weekly</option>
+        <option value="yearly">Yearly</option>
+      </select>
+      <input name="amount" type="number" step="0.01" min="0.01" placeholder="Amount" required>
+      <span></span>
+      <button class="add-btn" type="submit">Add item</button>
+    </form>
+  </section>
+</div>
+
+<script>
+  const STORAGE_KEY='ledger-finance-v1';
+  const THEME_KEY='ledger-theme-v1';
+  let state={recurring:[],debts:[]};
+
+  const SUN_ICON='<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><g stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="12" y1="1.5" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22.5"/><line x1="1.5" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22.5" y2="12"/><line x1="4.2" y1="4.2" x2="6" y2="6"/><line x1="18" y1="18" x2="19.8" y2="19.8"/><line x1="4.2" y1="19.8" x2="6" y2="18"/><line x1="18" y1="6" x2="19.8" y2="4.2"/></g></svg>';
+  const MOON_ICON='<svg viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></svg>';
+
+  function getEffectiveTheme(){
+    const attr=document.documentElement.getAttribute('data-theme');
+    if(attr)return attr;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
+  }
+  function updateToggleIcon(t){
+    const btn=document.getElementById('theme-toggle'); if(!btn)return;
+    btn.innerHTML=t==='dark'?SUN_ICON:MOON_ICON;
+    btn.setAttribute('aria-label',t==='dark'?'Switch to light mode':'Switch to dark mode');
+  }
+  function applyTheme(t,save){
+    document.documentElement.setAttribute('data-theme',t);
+    if(save){try{localStorage.setItem(THEME_KEY,t);}catch(e){}}
+    updateToggleIcon(t);
+  }
+  function toggleTheme(){applyTheme(getEffectiveTheme()==='dark'?'light':'dark',true);}
+  function initTheme(){
+    let saved=null; try{saved=localStorage.getItem(THEME_KEY);}catch(e){}
+    if(saved){applyTheme(saved,false);}
+    else{updateToggleIcon(getEffectiveTheme());}
+    try{
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',e=>{
+        let s=null; try{s=localStorage.getItem(THEME_KEY);}catch(err){}
+        if(!s)updateToggleIcon(e.matches?'dark':'light');
+      });
+    }catch(e){}
+  }
+
+  function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+  function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
+  function fmt(n){return new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP',maximumFractionDigits:2}).format(n||0);}
+  function monthlyOf(item){
+    const a=Number(item.amount)||0;
+    if(item.frequency==='weekly')return a*52/12;
+    if(item.frequency==='yearly')return a/12;
+    return a;
+  }
+  function calcPayoff(balance,payment,apr){
+    balance=Number(balance)||0; payment=Number(payment)||0; apr=Number(apr)||0;
+    if(balance<=0)return{months:0,dateObj:null,dateStr:'Paid off'};
+    if(payment<=0)return{months:null,dateObj:null,dateStr:'Add a payment amount'};
+    const r=apr/100/12;
+    let months;
+    if(r===0){months=Math.ceil(balance/payment);}
+    else{
+      if(payment<=balance*r)return{months:null,dateObj:null,dateStr:'Payment too low to clear balance'};
+      months=Math.ceil(-Math.log(1-(r*balance)/payment)/Math.log(1+r));
+    }
+    const d=new Date(); d.setMonth(d.getMonth()+months);
+    return{months,dateObj:d,dateStr:d.toLocaleDateString('en-GB',{month:'short',year:'numeric'})};
+  }
+
+  function load(){
+    try{const raw=localStorage.getItem(STORAGE_KEY); if(raw)state=JSON.parse(raw);}catch(e){}
+  }
+  function persist(){
+    try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state));}catch(e){}
+  }
+
+  function catOptions(sel){
+    return['expense','subscription','bill','rent'].map(c=>
+      `<option value="${c}"${c===sel?' selected':''}>${c[0].toUpperCase()+c.slice(1)}</option>`).join('');
+  }
+  function freqOptions(sel){
+    return['monthly','weekly','yearly'].map(f=>
+      `<option value="${f}"${f===sel?' selected':''}>${f[0].toUpperCase()+f.slice(1)}</option>`).join('');
+  }
+
+  function renderRecList(){
+    const el=document.getElementById('rec-list');
+    if(!state.recurring.length){el.innerHTML='<div class="empty">No recurring items yet — add one below.</div>';return;}
+    el.innerHTML=state.recurring.map(i=>`
+      <div class="row rec-grid" data-id="${i.id}">
+        <input value="${esc(i.name)}" onchange="updateRecurringField('${i.id}','name',this.value)">
+        <select onchange="updateRecurringField('${i.id}','category',this.value)">${catOptions(i.category)}</select>
+        <select onchange="updateRecurringField('${i.id}','frequency',this.value)">${freqOptions(i.frequency)}</select>
+        <input type="number" step="0.01" value="${i.amount}" onchange="updateRecurringField('${i.id}','amount',this.value)">
+        <button class="row-del" onclick="removeRecurring('${i.id}')" aria-label="Delete">×</button>
+      </div>`).join('');
+  }
+
+  function renderDebtList(){
+    const el=document.getElementById('debt-list');
+    if(!state.debts.length){el.innerHTML='<div class="empty">No debts yet — add one below.</div>';return;}
+    el.innerHTML=state.debts.map(d=>{
+      const p=calcPayoff(d.balance,d.payment,d.apr);
+      return`
+      <div class="row debt-grid" data-id="${d.id}">
+        <input value="${esc(d.name)}" onchange="updateDebtField('${d.id}','name',this.value)">
+        <input type="number" step="0.01" value="${d.balance}" onchange="updateDebtField('${d.id}','balance',this.value)">
+        <input type="number" step="0.01" value="${d.payment}" onchange="updateDebtField('${d.id}','payment',this.value)">
+        <input type="number" step="0.01" value="${d.apr||0}" onchange="updateDebtField('${d.id}','apr',this.value)">
+        <span class="payoff" id="payoff-${d.id}">${p.months?`${p.months} mo · ${p.dateStr}`:p.dateStr}</span>
+        <button class="row-del" onclick="removeDebt('${d.id}')" aria-label="Delete">×</button>
+      </div>`;
+    }).join('');
+  }
+
+  function computeDebtFreeDate(){
+    if(!state.debts.length)return'';
+    let maxDate=null,invalid=false;
+    state.debts.forEach(d=>{
+      if(Number(d.balance)<=0)return;
+      const p=calcPayoff(d.balance,d.payment,d.apr);
+      if(p.months===null)invalid=true;
+      else if(p.dateObj&&(!maxDate||p.dateObj>maxDate))maxDate=p.dateObj;
+    });
+    if(invalid)return'Raise a payment to clear all debt';
+    if(!maxDate)return'All debts paid off';
+    return'Debt-free by '+maxDate.toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+  }
+
+  function pulse(el){el.style.opacity='.45';requestAnimationFrame(()=>el.style.opacity='1');}
+
+  function renderTotals(){
+    const recTotal=state.recurring.reduce((s,i)=>s+monthlyOf(i),0);
+    const debtPay=state.debts.reduce((s,d)=>s+(Number(d.balance)>0?Number(d.payment)||0:0),0);
+    const totalDebt=state.debts.reduce((s,d)=>s+Math.max(Number(d.balance)||0,0),0);
+    const outEl=document.getElementById('total-outgoings');
+    const debtEl=document.getElementById('total-debt');
+    outEl.textContent=fmt(recTotal+debtPay); pulse(outEl);
+    debtEl.textContent=fmt(totalDebt); pulse(debtEl);
+    document.getElementById('debt-free-date').textContent=computeDebtFreeDate();
+    ['expense','subscription','bill','rent'].forEach(c=>{
+      const sum=state.recurring.filter(i=>i.category===c).reduce((s,i)=>s+monthlyOf(i),0);
+      const b=document.getElementById('badge-'+c); if(b)b.textContent=fmt(sum);
+    });
+    const debtBadges=document.getElementById('debt-badges');
+    debtBadges.innerHTML=state.debts.length?`<span>Debts: <b>${state.debts.length}</b></span><span>Monthly debt payments: <b>${fmt(debtPay)}</b></span>`:'';
+  }
+
+  function updateRecurringField(id,field,value){
+    const i=state.recurring.find(x=>x.id===id); if(!i)return;
+    i[field]=(field==='amount')?parseFloat(value)||0:value;
+    persist(); renderTotals();
+  }
+  function updateDebtField(id,field,value){
+    const d=state.debts.find(x=>x.id===id); if(!d)return;
+    d[field]=(field==='name')?value:(parseFloat(value)||0);
+    persist();
+    const p=calcPayoff(d.balance,d.payment,d.apr);
+    const span=document.getElementById('payoff-'+id);
+    if(span)span.textContent=p.months?`${p.months} mo · ${p.dateStr}`:p.dateStr;
+    renderTotals();
+  }
+  function removeRecurring(id){state.recurring=state.recurring.filter(i=>i.id!==id);persist();renderRecList();renderTotals();}
+  function removeDebt(id){state.debts=state.debts.filter(d=>d.id!==id);persist();renderDebtList();renderTotals();}
+
+  function addRecurring(e){
+    e.preventDefault(); const f=e.target;
+    const name=f.name.value.trim(); const amount=parseFloat(f.amount.value)||0;
+    if(!name||amount<=0)return false;
+    state.recurring.push({id:uid(),name,category:f.category.value,frequency:f.frequency.value,amount});
+    persist(); renderRecList(); renderTotals(); f.reset(); return false;
+  }
+  function addDebt(e){
+    e.preventDefault(); const f=e.target;
+    const name=f.name.value.trim(); const balance=parseFloat(f.balance.value)||0; const payment=parseFloat(f.payment.value)||0;
+    if(!name||balance<0||payment<=0)return false;
+    state.debts.push({id:uid(),name,balance,payment,apr:parseFloat(f.apr.value)||0});
+    persist(); renderDebtList(); renderTotals(); f.reset(); return false;
+  }
+
+  function registerPWA(){
+    try{
+      const iconSVG=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="18" fill="#14171F"/><text x="50" y="67" font-size="52" text-anchor="middle" fill="#C9982E" font-family="Georgia,serif">£</text></svg>`;
+      const manifest={name:"Ledger — Finance Tracker",short_name:"Ledger",start_url:".",display:"standalone",
+        background_color:"#14171F",theme_color:"#14171F",
+        icons:[{src:"data:image/svg+xml;utf8,"+encodeURIComponent(iconSVG),sizes:"any",type:"image/svg+xml",purpose:"any maskable"}]};
+      const blob=new Blob([JSON.stringify(manifest)],{type:'application/manifest+json'});
+      const link=document.createElement('link'); link.rel='manifest'; link.href=URL.createObjectURL(blob);
+      document.head.appendChild(link);
+    }catch(e){}
+    try{
+      if('serviceWorker' in navigator){
+        const swCode=`self.addEventListener('install',e=>self.skipWaiting());
+          self.addEventListener('activate',e=>self.clients.claim());
+          self.addEventListener('fetch',e=>{e.respondWith(caches.open('ledger-v1').then(c=>c.match(e.request).then(r=>r||fetch(e.request).then(n=>{c.put(e.request,n.clone());return n;}).catch(()=>r))));});`;
+        const swBlob=new Blob([swCode],{type:'text/javascript'});
+        navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(()=>{});
+      }
+    }catch(e){}
+  }
+
+  function init(){initTheme(); load(); renderRecList(); renderDebtList(); renderTotals(); registerPWA();}
+  window.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
