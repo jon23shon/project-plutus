@@ -48,6 +48,13 @@
   .theme-toggle{flex:none;width:38px;height:38px;border:1px solid var(--border);background:var(--surface);border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text);padding:0;}
   .theme-toggle:hover{border-color:var(--amber);}
   .theme-toggle svg{width:18px;height:18px;fill:currentColor;}
+  .sync-bar{margin-bottom:20px;}
+  .sync-btn{font:inherit;font-size:.82rem;font-family:var(--font-mono);border:1px solid var(--border);background:var(--surface);color:var(--text-muted);border-radius:999px;padding:7px 14px;cursor:pointer;}
+  .sync-btn:hover{border-color:var(--amber);}
+  .sync-btn span{color:var(--text);font-weight:500;}
+  .sync-panel{margin-top:10px;display:grid;gap:8px;padding:14px;border:1px solid var(--border);border-radius:8px;background:var(--surface);}
+  .sync-panel input{font:inherit;font-size:.86rem;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);}
+  .sync-panel .add-btn{justify-self:start;}
   .totals{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:36px;}
   .stat{border:1px solid var(--border);border-radius:10px;padding:20px;background:var(--surface);}
   .stat .label{font-family:var(--font-mono);font-size:.72rem;color:var(--text-muted);margin-bottom:10px;}
@@ -96,6 +103,16 @@
     </div>
     <p>Track rent, bills, subscriptions and everyday spending, and see exactly when each debt will be clear.</p>
   </header>
+
+  <div class="sync-bar">
+    <button class="sync-btn" onclick="toggleSyncPanel()">Cloud sync: <span id="sync-status">Off</span></button>
+    <div class="sync-panel" id="sync-panel" hidden>
+      <input id="sy-url" placeholder="Supabase project URL" value="https://necpndakrizcjfjxvxpc.supabase.co">
+      <input id="sy-key" placeholder="Supabase anon public key" value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5lY3BuZGFrcml6Y2pmanh2eHBjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA0ODU5ODIsImV4cCI6MjEwNjA2MTk4Mn0.c69z_Rg6DFR80cANw2BK0_beoV5WBUcAVoQobDp-8T8">
+      <input id="sy-code" placeholder="Your sync code (same on every device)">
+      <button class="add-btn" onclick="saveCloudConfig()">Save &amp; connect</button>
+    </div>
+  </div>
 
   <section class="totals">
     <div class="stat out">
@@ -191,6 +208,67 @@
     }catch(e){}
   }
 
+  const CLOUD_KEY='ledger-cloud-config';
+  let cloud=null;
+  let pushTimer=null;
+  function loadCloudConfig(){
+    try{const raw=localStorage.getItem(CLOUD_KEY); if(raw)cloud=JSON.parse(raw);}catch(e){}
+  }
+  function setSyncStatus(t){const el=document.getElementById('sync-status'); if(el)el.textContent=t;}
+  function toggleSyncPanel(){
+    const p=document.getElementById('sync-panel'); p.hidden=!p.hidden;
+    if(cloud&&!p.hidden){
+      document.getElementById('sy-url').value=cloud.url;
+      document.getElementById('sy-key').value=cloud.key;
+      document.getElementById('sy-code').value=cloud.code;
+    }
+  }
+  function saveCloudConfig(){
+    const url=document.getElementById('sy-url').value.trim().replace(/\/+$/,'');
+    const key=document.getElementById('sy-key').value.trim();
+    const code=document.getElementById('sy-code').value.trim();
+    if(!url||!key||!code)return;
+    cloud={url,key,code};
+    try{localStorage.setItem(CLOUD_KEY,JSON.stringify(cloud));}catch(e){}
+    document.getElementById('sync-panel').hidden=true;
+    setSyncStatus('Connecting…');
+    pullFromCloud();
+  }
+  async function pullFromCloud(){
+    if(!cloud)return;
+    try{
+      const res=await fetch(`${cloud.url}/rest/v1/ledger_data?id=eq.${encodeURIComponent(cloud.code)}&select=data`,{
+        headers:{apikey:cloud.key, Authorization:`Bearer ${cloud.key}`}
+      });
+      if(!res.ok)throw new Error('fetch failed');
+      const rows=await res.json();
+      if(rows&&rows[0]&&rows[0].data){
+        state=rows[0].data;
+        try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state));}catch(e){}
+        renderRecList(); renderDebtList(); renderTotals();
+      }
+      setSyncStatus('Synced ✓');
+    }catch(e){setSyncStatus('Offline (using local copy)');}
+  }
+  function pushToCloud(){
+    if(!cloud)return;
+    clearTimeout(pushTimer);
+    pushTimer=setTimeout(async()=>{
+      try{
+        const res=await fetch(`${cloud.url}/rest/v1/ledger_data`,{
+          method:'POST',
+          headers:{
+            apikey:cloud.key, Authorization:`Bearer ${cloud.key}`,
+            'Content-Type':'application/json',
+            Prefer:'resolution=merge-duplicates'
+          },
+          body:JSON.stringify({id:cloud.code, data:state, updated_at:new Date().toISOString()})
+        });
+        setSyncStatus(res.ok?'Synced ✓':'Sync error');
+      }catch(e){setSyncStatus('Offline (using local copy)');}
+    },600);
+  }
+
   function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
   function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
   function fmt(n){return new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP',maximumFractionDigits:2}).format(n||0);}
@@ -220,6 +298,7 @@
   }
   function persist(){
     try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state));}catch(e){}
+    pushToCloud();
   }
 
   function catOptions(sel){
@@ -347,7 +426,11 @@
     }catch(e){}
   }
 
-  function init(){initTheme(); load(); renderRecList(); renderDebtList(); renderTotals(); registerPWA();}
+  function init(){
+    initTheme(); load(); renderRecList(); renderDebtList(); renderTotals(); registerPWA();
+    loadCloudConfig();
+    if(cloud){setSyncStatus('Connecting…'); pullFromCloud();}
+  }
   window.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
